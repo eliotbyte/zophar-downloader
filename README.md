@@ -77,6 +77,12 @@ def setup_browser():
     # ...
 ```
 
+### 5. Run script
+
+```bash
+python download.py
+```
+
 ## Usage
 
 Run the script using the command:
