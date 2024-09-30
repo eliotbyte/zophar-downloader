@@ -10,7 +10,6 @@ A Python script to download game music and cover images from [Zophar's Domain](h
 - [Usage](#usage)
 - [Configuration](#configuration)
 - [Contributing](#contributing)
-- [License](#license)
 
 ## Features
 
@@ -37,7 +36,7 @@ A Python script to download game music and cover images from [Zophar's Domain](h
 
 ```bash
 git clone https://github.com/eliotbyte/zophar_downloader.git
-cd zophar-music-downloader
+cd zophar_downloader
 ```
 
 ### 2. Install Python Dependencies
@@ -71,6 +70,13 @@ pip install -r requirements.txt
 
 In the `download.py` script, update the path to your `chromedriver` executable in the `setup_browser()` function:
 
+```python
+def setup_browser():
+    # ...
+    service = Service(r'/path/to/chromedriver')  # Update this path
+    # ...
+```
+
 ## Usage
 
 Run the script using the command:
@@ -91,3 +97,57 @@ The script will:
         - Download the cover image (if available).
         - Download and extract the music files in the preferred format.
         - Display progress in the console.
+
+## Configuration
+
+- **Download Directory**: By default, all files are downloaded to the ./downloads/ directory. You can change this by modifying the download.py script.
+
+- **Preferred Formats**: The script prioritizes music formats in the following order:
+
+    - Original/Emulated formats (e.g., NSF, SPC)
+    - WAV
+    - FLAC
+    - MP3
+
+    To change the priority, modify the parse_game_page() function in download.py.
+
+- **Delay Between Requests**: The script uses time.sleep(2) to wait for pages to load. You can adjust this value if necessary.
+
+## Contributing
+
+Contributions are welcome! Please follow these steps:
+
+1. Fork the Repository
+
+    Click the "Fork" button at the top right of the repository page.
+
+2. Clone Your Fork
+
+```bash
+git clone https://github.com/eliotbyte/zophar_downloader.git
+cd zophar_downloader
+```
+
+3. Create a Feature Branch
+
+```bash
+git checkout -b feature/your-feature-name
+```
+
+4. Make Changes and Commit
+
+```bash
+git add .
+git commit -m "Add your feature"
+```
+
+5. Push to Your Fork
+
+```bash
+git push origin feature/your-feature-name
+```
+
+6. Create a Pull Request
+
+Go to the original repository and create a pull request from your fork.
+
