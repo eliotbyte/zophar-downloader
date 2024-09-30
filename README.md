@@ -13,6 +13,7 @@ A Python script to download game music and cover images from [Zophar's Domain](h
 
 ## Features
 
+- Download all video game soundtracks from Zophar's Domain
 - **Automated Downloading**: Automatically downloads music files and cover images for games from Zophar's Domain.
 - **Organized Structure**: Saves files in a structured directory (`./downloads/<Console>/<Game>/`).
 - **Format Prioritization**: Downloads music files in preferred formats based on quality:
