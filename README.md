@@ -36,8 +36,8 @@ A Python script to download game music and cover images from [Zophar's Domain](h
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/eliotbyte/zophar_downloader.git
-cd zophar_downloader
+git clone https://github.com/eliotbyte/zophar-downloader.git
+cd zophar-downloader
 ```
 
 ### 2. Install Python Dependencies
