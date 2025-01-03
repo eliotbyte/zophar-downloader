@@ -1,0 +1,33 @@
+{
+    "download_consoles": [
+        "nes",
+        "snes",
+        "gameboy",
+        "gameboy advance",
+        "nintendo ds",
+        "nintendo 3ds",
+        "nintendo 64",
+        "nintendo gamecube",
+        "nintendo wii",
+        "playstation",
+        "playstation 2",
+        "playstation 3",
+        "psp",
+        "sega game gear",
+        "sega master system",
+        "sega genesis",
+        "sega saturn",
+        "sega dreamcast",
+        "turbografx-16",
+        "xbox",
+        "xbox 360"
+    ],
+    "format_priority": [
+        "original",
+        "emu",
+        "wav",
+        "flac",
+        "mp3"
+    ],
+    "need_to_extract": true
+}
