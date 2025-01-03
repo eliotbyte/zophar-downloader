@@ -29,5 +29,8 @@
         "flac",
         "mp3"
     ],
-    "need_to_extract": true
+    "need_to_extract": true,
+    "redownload_failed_files": true,
+    "retry_count": 3,
+    "retry_delay_seconds": 5
 }

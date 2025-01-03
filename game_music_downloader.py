@@ -2,6 +2,7 @@ import os
 import json
 import requests
 import zipfile
+import time
 
 # File containing the list of games
 DOWNLOADS_LIST_FILE = "./downloads_list.json"
@@ -22,14 +23,32 @@ def create_directory(path):
         os.makedirs(path)
 
 
-# Download a file from a URL
-def download_file(url, save_path):
-    response = requests.get(url, stream=True)
-    response.raise_for_status()
-    with open(save_path, "wb") as file:
-        for chunk in response.iter_content(chunk_size=1024):
-            if chunk:
-                file.write(chunk)
+# Download a file from a URL with retry logic
+def download_file_with_retry(url, save_path, retry_count, retry_delay_seconds):
+    """
+    Attempts to download the file from a URL up to 'retry_count' times.
+    Delays 'retry_delay_seconds' between attempts. Raises an exception if all retries fail.
+    """
+    last_exception = None
+    for attempt in range(retry_count):
+        try:
+            response = requests.get(url, stream=True)
+            response.raise_for_status()
+            with open(save_path, "wb") as file:
+                for chunk in response.iter_content(chunk_size=1024):
+                    if chunk:
+                        file.write(chunk)
+            # If download succeeded, return
+            return
+        except Exception as e:
+            last_exception = e
+            if attempt < retry_count - 1:
+                print(
+                    f"Download failed (attempt {attempt+1}/{retry_count}). Retrying in {retry_delay_seconds} seconds..."
+                )
+                time.sleep(retry_delay_seconds)
+    # If we get here, all attempts failed
+    raise last_exception
 
 
 # Extract a zip archive
@@ -104,6 +123,9 @@ def main():
     download_consoles = [c.lower() for c in settings["download_consoles"]]
     format_priority = [f.lower() for f in settings["format_priority"]]
     need_to_extract = settings["need_to_extract"]
+    redownload_failed_files = settings.get("redownload_failed_files", False)
+    retry_count = settings.get("retry_count", 3)
+    retry_delay_seconds = settings.get("retry_delay_seconds", 5)
 
     # Load the list of games
     with open(DOWNLOADS_LIST_FILE, "r", encoding="utf-8") as f:
@@ -139,12 +161,19 @@ def main():
             image_url = game_data.get("image_url", "")
             game_url = game_data.get("game_page_url", "")
 
-            # Check if the game is already downloaded (status "done")
-            if (
-                game_url in download_status
-                and download_status[game_url].get("status") == "done"
-            ):
+            # Determine if this game has a recorded status
+            current_status = download_status.get(game_url, {}).get("status")
+
+            # Skip if already downloaded
+            if current_status == "done":
                 print(f"Skipping already downloaded game: {game_name}")
+                continue
+
+            # Skip if it failed and we're not re-downloading failed ones
+            if current_status == "fail" and not redownload_failed_files:
+                print(
+                    f"Skipping previously failed game (redownload disabled): {game_name}"
+                )
                 continue
 
             game_folder = os.path.join("downloads", sanitized_console_name, game_name)
@@ -156,7 +185,11 @@ def main():
             if best_link:
                 zip_path = os.path.join(game_folder, "music.zip")
                 try:
-                    download_file(best_link, zip_path)
+                    # Use retry logic
+                    download_file_with_retry(
+                        best_link, zip_path, retry_count, retry_delay_seconds
+                    )
+
                     if need_to_extract:
                         extract_zip(zip_path, game_folder)
                         os.remove(zip_path)  # Delete the archive
@@ -167,7 +200,9 @@ def main():
                             cover_path = os.path.join(
                                 game_folder, f"cover{cover_extension}"
                             )
-                            download_file(image_url, cover_path)
+                            download_file_with_retry(
+                                image_url, cover_path, retry_count, retry_delay_seconds
+                            )
                     # If extraction is not needed, leave the archive as is (no cover download)
 
                     # Success: record the game status
