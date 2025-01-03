@@ -10,3 +10,4 @@ downloads/
 # Custom files
 download_status.json
 chromedriver.exe
+failed_downloads.txt
