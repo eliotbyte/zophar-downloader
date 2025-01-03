@@ -14,8 +14,8 @@ SETTINGS_FILE = "./settings.json"
 # File with download status
 DOWNLOAD_STATUS_FILE = "./download_status.json"
 
-# File with the list of failed downloads
-FAILED_DOWNLOADS_FILE = "./failed_downloads.txt"
+# File with the list of failed downloads (now JSON)
+FAILED_DOWNLOADS_FILE = "./failed_downloads.json"
 
 
 def create_directory(path):
@@ -143,6 +143,23 @@ def save_download_status(status_data):
         json.dump(status_data, f, ensure_ascii=False, indent=4)
 
 
+def load_failed_downloads():
+    """
+    Load the failed downloads from FAILED_DOWNLOADS_FILE if it exists.
+    Returns a dictionary of failed downloads.
+    """
+    if os.path.exists(FAILED_DOWNLOADS_FILE):
+        with open(FAILED_DOWNLOADS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+def save_failed_downloads(failed_data):
+    """Save the failed downloads to FAILED_DOWNLOADS_FILE."""
+    with open(FAILED_DOWNLOADS_FILE, "w", encoding="utf-8") as f:
+        json.dump(failed_data, f, ensure_ascii=False, indent=4)
+
+
 def main():
     # Load settings
     with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
@@ -169,6 +186,9 @@ def main():
 
     # Load the current download status of games
     download_status = load_download_status()
+
+    # Load the current failed downloads
+    failed_downloads = load_failed_downloads()
 
     # Process only the necessary consoles
     for console_lower in download_consoles:
@@ -250,11 +270,13 @@ def main():
                     download_status[game_url] = {"status": "fail", "comment": str(e)}
                     save_download_status(download_status)
 
-                    # Log the failed download URL
-                    with open(
-                        FAILED_DOWNLOADS_FILE, "a", encoding="utf-8"
-                    ) as fail_file:
-                        fail_file.write(game_url + "\n")
+                    # Don't add a duplicate to failed_downloads if the entry already exists
+                    if game_url not in failed_downloads:
+                        failed_downloads[game_url] = {
+                            "status": "fail",
+                            "comment": str(e),
+                        }
+                        save_failed_downloads(failed_downloads)
 
             else:
                 print(f"No suitable link for game {game_name}. Skipping.")
@@ -263,6 +285,13 @@ def main():
                     "comment": "No suitable link",
                 }
                 save_download_status(download_status)
+
+                if game_url not in failed_downloads:
+                    failed_downloads[game_url] = {
+                        "status": "fail",
+                        "comment": "No suitable link",
+                    }
+                    save_failed_downloads(failed_downloads)
 
 
 if __name__ == "__main__":
