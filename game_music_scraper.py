@@ -12,6 +12,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 
+
 def setup_browser():
     chrome_options = Options()
     chrome_options.add_argument("--headless")
@@ -20,17 +21,17 @@ def setup_browser():
     # Disable loading of images, styles, and plugins
     chrome_prefs = {
         "profile.default_content_setting_values": {
-            "images": 2,       # Disable image loading
+            "images": 2,  # Disable image loading
             "stylesheets": 2,  # Disable CSS loading
             "plugins": 2,
-            "popups": 2
+            "popups": 2,
             # If the site is not critical to JS, you can disable it as well:
             # "javascript": 2
         }
     }
     chrome_options.experimental_options["prefs"] = chrome_prefs
 
-    service = Service(r'/path/to/chromedriver')  # Specify the path to your chromedriver
+    service = Service(r"/path/to/chromedriver")  # Specify the path to your chromedriver
     browser = webdriver.Chrome(service=service, options=chrome_options)
 
     # Set a general implicit wait time
@@ -38,11 +39,13 @@ def setup_browser():
 
     return browser
 
+
 def sanitize_console_name(console_name):
     # If the name contains "/", take only what comes before "/"
     if "/" in console_name:
         console_name = console_name.split("/")[0].strip()
     return console_name
+
 
 def get_console_list(browser):
     """
@@ -56,22 +59,22 @@ def get_console_list(browser):
     WebDriverWait(browser, 10).until(
         EC.presence_of_element_located((By.TAG_NAME, "h2"))
     )
-    soup = BeautifulSoup(browser.page_source, 'lxml')
+    soup = BeautifulSoup(browser.page_source, "lxml")
 
     console_list = {}
-    h2_elements = soup.find_all('h2')
+    h2_elements = soup.find_all("h2")
     consoles_section = None
     for h2 in h2_elements:
-        if h2.string == 'Consoles':
-            consoles_section = h2.find_next_sibling('ul')
+        if h2.string == "Consoles":
+            consoles_section = h2.find_next_sibling("ul")
             break
 
     if consoles_section is None:
         print("Failed to find the 'Consoles' section.")
         return console_list  # Empty dictionary
 
-    for li in consoles_section.find_all('li'):
-        a_tag = li.find('a')
+    for li in consoles_section.find_all("li"):
+        a_tag = li.find("a")
         if a_tag:
             console_name = a_tag.text.strip()
             console_url = f"https://www.zophar.net{a_tag['href']}"
@@ -79,6 +82,7 @@ def get_console_list(browser):
             console_list[sanitized_name] = console_url
 
     return console_list
+
 
 def parse_console_page(console_url, console_name, browser):
     """
@@ -100,18 +104,18 @@ def parse_console_page(console_url, console_name, browser):
             # If the element is not present, there are no more pages
             break
 
-        soup = BeautifulSoup(browser.page_source, 'lxml')
+        soup = BeautifulSoup(browser.page_source, "lxml")
 
-        games = soup.select('#gamelist .regularrow, #gamelist .regularrow_image')
+        games = soup.select("#gamelist .regularrow, #gamelist .regularrow_image")
 
         # Exit if no games are found
         if not games:
             break
 
         for game in games:
-            name_td = game.find('td', class_='name')
+            name_td = game.find("td", class_="name")
             if name_td:
-                a_tag = name_td.find('a')
+                a_tag = name_td.find("a")
                 if a_tag:
                     game_name = a_tag.text.strip()
                     game_link = f"https://www.zophar.net{a_tag['href']}"
@@ -119,7 +123,9 @@ def parse_console_page(console_url, console_name, browser):
                     print(f"Processing game: {game_name} from {console_name}")
 
                     # Visit the game page
-                    game_info = parse_game_page(game_link, console_name, game_name, browser)
+                    game_info = parse_game_page(
+                        game_link, console_name, game_name, browser
+                    )
                     if game_info:
                         games_data.append(game_info)
                 else:
@@ -129,6 +135,7 @@ def parse_console_page(console_url, console_name, browser):
         page += 1
 
     return games_data
+
 
 def parse_game_page(game_url, console_name, game_name, browser):
     """
@@ -145,13 +152,13 @@ def parse_game_page(game_url, console_name, game_name, browser):
     except:
         pass
 
-    soup = BeautifulSoup(browser.page_source, 'lxml')
+    soup = BeautifulSoup(browser.page_source, "lxml")
 
     # Cover
-    cover_img_tag = soup.select_one('#music_cover img')
+    cover_img_tag = soup.select_one("#music_cover img")
     cover_url = ""
-    if cover_img_tag and cover_img_tag.get('src'):
-        cover_url = cover_img_tag['src']
+    if cover_img_tag and cover_img_tag.get("src"):
+        cover_url = cover_img_tag["src"]
 
     # Main information
     release_date = ""
@@ -159,12 +166,12 @@ def parse_game_page(game_url, console_name, game_name, browser):
     publisher = ""
     console = console_name  # Already known
 
-    music_info_div = soup.select_one('#music_info')
+    music_info_div = soup.select_one("#music_info")
     if music_info_div:
-        p_tags = music_info_div.find_all('p')
+        p_tags = music_info_div.find_all("p")
         for p in p_tags:
-            label_span = p.find('span', class_='infoname')
-            data_span = p.find('span', class_='infodata')
+            label_span = p.find("span", class_="infoname")
+            data_span = p.find("span", class_="infodata")
             if label_span and data_span:
                 label_text = label_span.get_text(strip=True).lower()
                 data_text = data_span.get_text(strip=True)
@@ -177,17 +184,14 @@ def parse_game_page(game_url, console_name, game_name, browser):
 
     # Download links
     download_links = []
-    mass_download_div = soup.select_one('#mass_download')
+    mass_download_div = soup.select_one("#mass_download")
     if mass_download_div:
-        links = mass_download_div.find_all('a')
+        links = mass_download_div.find_all("a")
         for link in links:
-            link_url = link.get('href', "")
-            link_text_tag = link.find('p')
+            link_url = link.get("href", "")
+            link_text_tag = link.find("p")
             link_text = link_text_tag.get_text(strip=True) if link_text_tag else ""
-            download_links.append({
-                "name": link_text,
-                "url": link_url
-            })
+            download_links.append({"name": link_text, "url": link_url})
 
     return {
         "name": game_name,
@@ -197,8 +201,9 @@ def parse_game_page(game_url, console_name, game_name, browser):
         "console": console,
         "developer": developer,
         "publisher": publisher,
-        "download_links": download_links
+        "download_links": download_links,
     }
+
 
 def main():
     browser = setup_browser()
@@ -218,6 +223,7 @@ def main():
 
     with open("downloads_list.json", "w", encoding="utf-8") as outfile:
         json.dump(all_data, outfile, indent=4, ensure_ascii=False)
+
 
 if __name__ == "__main__":
     main()
