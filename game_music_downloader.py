@@ -3,6 +3,7 @@ import json
 import requests
 import zipfile
 import time
+import re
 
 # File containing the list of games
 DOWNLOADS_LIST_FILE = "./downloads_list.json"
@@ -17,13 +18,12 @@ DOWNLOAD_STATUS_FILE = "./download_status.json"
 FAILED_DOWNLOADS_FILE = "./failed_downloads.txt"
 
 
-# Create a directory if it does not exist
 def create_directory(path):
+    """Create a directory if it does not exist."""
     if not os.path.exists(path):
         os.makedirs(path)
 
 
-# Download a file from a URL with retry logic
 def download_file_with_retry(url, save_path, retry_count, retry_delay_seconds):
     """
     Attempts to download the file from a URL up to 'retry_count' times.
@@ -44,21 +44,25 @@ def download_file_with_retry(url, save_path, retry_count, retry_delay_seconds):
             last_exception = e
             if attempt < retry_count - 1:
                 print(
-                    f"Download failed (attempt {attempt+1}/{retry_count}). Retrying in {retry_delay_seconds} seconds..."
+                    f"Download failed (attempt {attempt+1}/{retry_count}). "
+                    f"Retrying in {retry_delay_seconds} seconds..."
                 )
                 time.sleep(retry_delay_seconds)
     # If we get here, all attempts failed
     raise last_exception
 
 
-# Extract a zip archive
 def extract_zip(zip_path, extract_to):
+    """Extract a zip archive into the specified directory."""
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
         zip_ref.extractall(extract_to)
 
 
-# Check and delete empty game directories
 def validate_game_directories(console_name):
+    """
+    Check each game folder under 'console_name' in 'downloads' and remove it
+    if it's empty or only contains a cover file.
+    """
     console_folder = os.path.join("downloads", console_name)
     if not os.path.exists(console_folder):
         return
@@ -83,16 +87,37 @@ def validate_game_directories(console_name):
             os.rmdir(game_folder_path)
 
 
-# Transform console name (if needed)
 def sanitize_console_name(console_name):
-    # If the console name contains '/', take the part before '/'
+    """
+    If the console name contains '/', take the part before '/'.
+    Returns a sanitized console name.
+    """
     if "/" in console_name:
         console_name = console_name.split("/")[0].strip()
+    # Remove any invalid path characters in the console name if needed
+    console_name = re.sub(r'[<>:"/\\|?*]', "_", console_name)
     return console_name
 
 
-# Select the download link based on priority
+def sanitize_folder_name(folder_name):
+    """
+    Remove or replace invalid path characters for Windows and ensure
+    there are no trailing dots or spaces. This helps avoid directory
+    creation issues.
+    """
+    # Replace invalid filename characters: < > : " / \ | ? *
+    sanitized = re.sub(r'[<>:"/\\|?*]', "_", folder_name)
+    # Remove trailing spaces and periods
+    sanitized = sanitized.rstrip(" .")
+    return sanitized
+
+
 def select_download_link(download_links, format_priority):
+    """
+    Select a download link from 'download_links' based on the priority in 'format_priority'.
+    For instance, if format_priority is ["mp3", "flac"], it will return the first link
+    whose 'name' contains 'mp3', otherwise 'flac', and so on.
+    """
     for priority in format_priority:
         for link_info in download_links:
             link_name_lower = link_info["name"].lower()
@@ -101,16 +126,19 @@ def select_download_link(download_links, format_priority):
     return None
 
 
-# Load download status (if the file exists)
 def load_download_status():
+    """
+    Load the download status from DOWNLOAD_STATUS_FILE if it exists.
+    Returns a dictionary of statuses.
+    """
     if os.path.exists(DOWNLOAD_STATUS_FILE):
         with open(DOWNLOAD_STATUS_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
-    return {}  # If the file does not exist, return an empty dictionary
+    return {}
 
 
-# Save download status
 def save_download_status(status_data):
+    """Save the download status to DOWNLOAD_STATUS_FILE."""
     with open(DOWNLOAD_STATUS_FILE, "w", encoding="utf-8") as f:
         json.dump(status_data, f, ensure_ascii=False, indent=4)
 
@@ -151,10 +179,10 @@ def main():
         sanitized_console_name = sanitize_console_name(console_lower)
         create_directory(os.path.join("downloads", sanitized_console_name))
 
-        # Check for empty/broken folders
+        # Validate existing folders for empty or broken game folders
         validate_game_directories(sanitized_console_name)
 
-        # Iterate through all games
+        # Iterate through all games for this console
         for game_data in games_for_console:
             game_name = game_data.get("name", "Untitled Game")
             download_links = game_data.get("download_links", [])
@@ -169,15 +197,22 @@ def main():
                 print(f"Skipping already downloaded game: {game_name}")
                 continue
 
-            # Skip if it failed and we're not re-downloading failed ones
+            # Skip if it failed previously and we're not re-downloading
             if current_status == "fail" and not redownload_failed_files:
                 print(
                     f"Skipping previously failed game (redownload disabled): {game_name}"
                 )
                 continue
 
-            game_folder = os.path.join("downloads", sanitized_console_name, game_name)
+            # Sanitize the game folder name
+            safe_game_name = sanitize_folder_name(game_name)
+            game_folder = os.path.join(
+                "downloads", sanitized_console_name, safe_game_name
+            )
             create_directory(game_folder)
+
+            # Let the user know which game is starting to download
+            print(f"Now downloading: {game_name}")
 
             # Select the best download link
             best_link = select_download_link(download_links, format_priority)
@@ -185,16 +220,16 @@ def main():
             if best_link:
                 zip_path = os.path.join(game_folder, "music.zip")
                 try:
-                    # Use retry logic
+                    # Use retry logic for download
                     download_file_with_retry(
                         best_link, zip_path, retry_count, retry_delay_seconds
                     )
 
                     if need_to_extract:
                         extract_zip(zip_path, game_folder)
-                        os.remove(zip_path)  # Delete the archive
+                        os.remove(zip_path)  # Delete the archive after extraction
 
-                        # Download the cover image, if needed
+                        # Download the cover image if an image URL is provided
                         if image_url:
                             cover_extension = os.path.splitext(image_url)[1]
                             cover_path = os.path.join(
@@ -205,9 +240,9 @@ def main():
                             )
                     # If extraction is not needed, leave the archive as is (no cover download)
 
-                    # Success: record the game status
+                    # Success: record the game status as "done"
                     download_status[game_url] = {"status": "done", "comment": ""}
-                    save_download_status(download_status)  # Save after each game
+                    save_download_status(download_status)
 
                 except Exception as e:
                     print(f"Error processing game {game_name}: {e}")
@@ -223,7 +258,6 @@ def main():
 
             else:
                 print(f"No suitable link for game {game_name}. Skipping.")
-                # Optionally record status indicating no suitable link
                 download_status[game_url] = {
                     "status": "fail",
                     "comment": "No suitable link",
