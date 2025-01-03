@@ -6,3 +6,7 @@ ENV/
 __pycache__/
 *.pyc
 downloads/
+
+# Custom files
+download_status.json
+chromedriver.exe
